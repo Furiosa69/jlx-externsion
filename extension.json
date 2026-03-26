@@ -1,9 +1,9 @@
 {
-	"name": "pro-api-sdk",
-	"uuid": "",
-	"displayName": "PRO API SDK",
-	"description": "嘉立创EDA & EasyEDA 专业版扩展 API 开发工具",
-	"version": "1.0.0",
+	"name": "silkscreen-generator",
+	"uuid": "715e6acdb8c849e1b18bd90fcf2785b6",
+	"displayName": "丝印生成器",
+	"description": "根据网络标签自动生成丝印，支持不同字体、一键避让焊盘、统一文字方向、设置固定字号",
+	"version": "1.0.2",
 	"publisher": "",
 	"engines": {
 		"eda": "^3.0.0"
@@ -13,9 +13,12 @@
 		"type": "extension-store",
 		"url": ""
 	},
-	"categories": "Other",
+	"categories": "Development",
 	"keywords": [
-		"SDK"
+		"Silkscreen",
+		"PCB",
+		"Net Label",
+		"EasyEDA"
 	],
 	"images": {
 		"logo": "./images/logo.png"
@@ -26,40 +29,39 @@
 	"entry": "./dist/index",
 	"dependentExtensions": {},
 	"headerMenus": {
-		"home": [
-			{
-				"id": "API SDK",
-				"title": "API SDK",
-				"menuItems": [
-					{
-						"id": "About",
-						"title": "About...",
-						"registerFn": "about"
-					}
-				]
-			}
-		],
-		"sch": [
-			{
-				"id": "API SDK",
-				"title": "API SDK",
-				"menuItems": [
-					{
-						"id": "About",
-						"title": "About...",
-						"registerFn": "about"
-					}
-				]
-			}
-		],
 		"pcb": [
 			{
-				"id": "API SDK",
-				"title": "API SDK",
+				"id": "silkscreen-generator-pcb",
+				"title": "丝印生成器",
 				"menuItems": [
 					{
-						"id": "About",
-						"title": "About...",
+						"id": "silkscreen-generate-pcb",
+						"title": "生成网络丝印",
+						"registerFn": "generateNetSilkscreen"
+					},
+					{
+						"id": "silkscreen-avoid-pad-pcb",
+						"title": "一键避让焊盘",
+						"registerFn": "avoidSilkscreenPads"
+					},
+					{
+						"id": "silkscreen-unify-direction-pcb",
+						"title": "统一文字方向",
+						"registerFn": "unifySilkscreenTextDirection"
+					},
+					{
+						"id": "silkscreen-font-pcb",
+						"title": "设置字体",
+						"registerFn": "setSilkscreenFontFamily"
+					},
+					{
+						"id": "silkscreen-fixed-font-pcb",
+						"title": "设置固定字号",
+						"registerFn": "setFixedSilkscreenFontSize"
+					},
+					{
+						"id": "silkscreen-about-pcb",
+						"title": "关于",
 						"registerFn": "about"
 					}
 				]

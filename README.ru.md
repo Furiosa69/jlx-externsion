@@ -1,43 +1,52 @@
-[简体中文](./README.md) | [English](./README.en.md) | [繁體中文](./README.zh-Hant.md) | [日本語](./README.ja.md) | [Русский](#)
+[简体中文](./README.md) | [English](./README.en.md) | [繁體中文](./README.zh-Hant.md) | [日本語](./README.ja.md) | [Русский](./README.ru.md)
 
-# pro-api-sdk
+# Генератор шелкографии
 
-嘉立创EDA & EasyEDA Pro Edition Расширьте возможности инструментов разработки API
+Это вспомогательное расширение для работы с шелкографией на странице PCB в JLCEDA Pro / EasyEDA Pro. Оно может автоматически создавать текст шелкографии по имени сети выбранных площадок, а также поддерживает обход площадок, выравнивание направления текста, настройку шрифта и фиксированного размера шрифта.
 
-<a href="https://github.com/easyeda/pro-api-sdk" style="vertical-align: inherit;" target="_blank"><img src="https://img.shields.io/github/stars/easyeda/pro-api-sdk" alt="GitHub Repo Stars" class="not-medium-zoom-image" style="display: inline; vertical-align: inherit;" /></a>&nbsp;<a href="https://github.com/easyeda/pro-api-sdk/issues" style="vertical-align: inherit;" target="_blank"><img src="https://img.shields.io/github/issues/easyeda/pro-api-sdk" alt="GitHub Issues" class="not-medium-zoom-image" style="display: inline; vertical-align: inherit;" /></a>&nbsp;<a href="https://github.com/easyeda/pro-api-sdk" style="vertical-align: inherit;" target="_blank"><img src="https://img.shields.io/github/repo-size/easyeda/pro-api-sdk" alt="GitHub Repo Size" class="not-medium-zoom-image" style="display: inline; vertical-align: inherit;" /></a>&nbsp;<a href="https://choosealicense.com/licenses/apache-2.0/" style="vertical-align: inherit;" target="_blank"><img src="https://img.shields.io/github/license/easyeda/pro-api-sdk" alt="GitHub License" class="not-medium-zoom-image" style="display: inline; vertical-align: inherit;" /></a>&nbsp;<a href="https://www.npmjs.com/package/@jlceda/pro-api-types" style="vertical-align: inherit;" target="_blank"><img src="https://img.shields.io/npm/v/%40jlceda%2Fpro-api-types?label=pro-api-types" alt="NPM Version" class="not-medium-zoom-image" style="display: inline; vertical-align: inherit;" /></a>&nbsp;<a href="https://www.npmjs.com/package/@jlceda/pro-api-types" style="vertical-align: inherit;" target="_blank"><img src="https://img.shields.io/npm/d18m/%40jlceda%2Fpro-api-types" alt="NPM Downloads" class="not-medium-zoom-image" style="display: inline; vertical-align: inherit;" /></a>
+## Возможности
 
-> [!NOTE]
->
-> Для получения подробной документации по разработке, пожалуйста, посетите: [https://prodocs.easyeda.com/en/api/guide/](https://prodocs.easyeda.com/en/api/guide/)
+### Меню
 
-## Войти в разработку
+![Меню генератора шелкографии](./images/menu-screenshot.png)
 
-Этот набор инструментов разработки содержит все среды и инструменты для разработки пакета расширений [EasyEDA Pro Edition](https://pro.easyeda.com/), а также имеет встроенные рекомендуемые правила для ESLint.
+### Генерация сетевой шелкографии
 
-1. Клонируйте репозиторий проекта [pro-api-sdk](https://github.com/easyeda/pro-api-sdk) на свой локальный компьютер
+- В PCB выберите компонент, площадку компонента или свободную площадку, чтобы считать имя связанной сети и автоматически создать текст шелкографии
+- Верхний или нижний слой шелкографии определяется автоматически на основе слоя площадки, слоя компонента и объектов, связанных с сетью
+- Пустые сети и автоматически созданные имена вроде `N$`, `Net-`, `unconnected` и `nc` автоматически игнорируются
+- Сразу после генерации выполняется один проход обхода площадок
 
-    ```shell
-    git clone --depth=1 https://github.com/easyeda/pro-api-sdk.git
-    ```
+### Обход площадок в один клик
 
-2. Инициализация среды разработки (установка зависимостей)
+- Сначала обрабатываются выбранные тексты шелкографии
+- Если ничего не выбрано, используются тексты, которые это расширение создало последними
+- Если и таких объектов нет, обрабатываются все тексты верхней и нижней шелкографии в текущем PCB
 
-    ```shell
-    npm install
-    ```
+### Выравнивание направления текста
 
-3. Внесите несколько изменений...
+- Текст на верхнем слое шелкографии устанавливается в `0°`
+- Текст на нижнем слое шелкографии устанавливается в `180°`
+- После изменения направления снова запускается обход площадок
 
-4. Компиляция пакета расширения
+### Демонстрация
 
-    ```shell
-    npm run build
-    ```
+![Демонстрация генерации шелкографии](./images/demo-effect.png)
 
-5. Установите пакет расширения, сгенерированный в разделе `./build/dist/` в EasyEDA Pro Edition
+## Использование
 
-## Лицензия с открытым исходным кодом
+1. Откройте документ PCB в JLCEDA / EasyEDA Pro.
+2. Откройте меню расширения через верхнее меню `PCB -> 丝印生成器`.
+3. При необходимости используйте следующие команды:
 
-<a href="https://choosealicense.com/licenses/apache-2.0/" style="vertical-align: inherit;" target="_blank"><img src="https://img.shields.io/github/license/easyeda/pro-api-sdk" alt="GitHub License" class="not-medium-zoom-image" style="display: inline; vertical-align: inherit;" /></a>
+   - `生成网络丝印`: сначала выберите компонент, площадку компонента или свободную площадку
+   - `一键避让焊盘`: при необходимости сначала выберите тексты шелкографии для обработки
+   - `统一文字方向`: при необходимости сначала выберите тексты шелкографии для обработки
+   - `设置字体`: выберите шрифт из списка шрифтов в приложении
+   - `设置固定字号`: введите число больше `0`
 
-Эта группа инструментов разработки использует лицензионное соглашение с открытым исходным кодом [Apache License 2.0](https://choosealicense.com/licenses/apache-2.0/), и вы можете использовать только информацию о товарном знаке **嘉立创EDA**, **EasyEDA** для **части описания функции** и **части названия выпуска с открытым исходным кодом** пакета расширений, разработанного на основе этой группы инструментов.
+4. После автоматической обработки рекомендуется вручную проверить и при необходимости подправить области с плотной упаковкой компонентов.
+
+## Лицензия
+
+Проект распространяется по лицензии [Apache License 2.0](./LICENSE).

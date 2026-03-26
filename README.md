@@ -1,51 +1,52 @@
-[简体中文](#) | [English](./README.en.md) | [繁體中文](./README.zh-Hant.md) | [日本語](./README.ja.md) | [Русский](./README.ru.md)
+[简体中文](./README.md) | [English](./README.en.md) | [繁體中文](./README.zh-Hant.md) | [日本語](./README.ja.md) | [Русский](./README.ru.md)
 
-# pro-api-sdk
+# 丝印生成器
 
-嘉立创EDA & EasyEDA 专业版扩展 API 开发工具
+适用于嘉立创 EDA 专业版 PCB 页面的丝印辅助扩展。它可以根据选中焊盘所属网络自动生成丝印文字，并提供焊盘避让、文字方向统一、字体设置和固定字号设置。
 
-<a href="https://github.com/easyeda/pro-api-sdk" style="vertical-align: inherit;" target="_blank"><img src="https://img.shields.io/github/stars/easyeda/pro-api-sdk" alt="GitHub Repo Stars" class="not-medium-zoom-image" style="display: inline; vertical-align: inherit;" /></a>&nbsp;<a href="https://github.com/easyeda/pro-api-sdk/issues" style="vertical-align: inherit;" target="_blank"><img src="https://img.shields.io/github/issues/easyeda/pro-api-sdk" alt="GitHub Issues" class="not-medium-zoom-image" style="display: inline; vertical-align: inherit;" /></a>&nbsp;<a href="https://github.com/easyeda/pro-api-sdk" style="vertical-align: inherit;" target="_blank"><img src="https://img.shields.io/github/repo-size/easyeda/pro-api-sdk" alt="GitHub Repo Size" class="not-medium-zoom-image" style="display: inline; vertical-align: inherit;" /></a>&nbsp;<a href="https://choosealicense.com/licenses/apache-2.0/" style="vertical-align: inherit;" target="_blank"><img src="https://img.shields.io/github/license/easyeda/pro-api-sdk" alt="GitHub License" class="not-medium-zoom-image" style="display: inline; vertical-align: inherit;" /></a>&nbsp;<a href="https://www.npmjs.com/package/@jlceda/pro-api-types" style="vertical-align: inherit;" target="_blank"><img src="https://img.shields.io/npm/v/%40jlceda%2Fpro-api-types?label=pro-api-types" alt="NPM Version" class="not-medium-zoom-image" style="display: inline; vertical-align: inherit;" /></a>&nbsp;<a href="https://www.npmjs.com/package/@jlceda/pro-api-types" style="vertical-align: inherit;" target="_blank"><img src="https://img.shields.io/npm/d18m/%40jlceda%2Fpro-api-types" alt="NPM Downloads" class="not-medium-zoom-image" style="display: inline; vertical-align: inherit;" /></a>
+## 功能概览
 
-> [!NOTE]
->
-> 详细开发文档请访问：[https://prodocs.lceda.cn/cn/api/guide/](https://prodocs.lceda.cn/cn/api/guide/)
+### 菜单栏
 
-## 进入开发
+![丝印生成器菜单栏](./images/menu-screenshot.png)
 
-本开发工具组包含了用于开发 [嘉立创EDA专业版](https://pro.lceda.cn/) 扩展包的所有环境和工具，并内置了 ESLint 的推荐规则。
+### 生成网络丝印
 
-1. 克隆 [pro-api-sdk](https://github.com/easyeda/pro-api-sdk) 项目仓库到本地
+- 在 PCB 中选中器件、器件焊盘或游离焊盘后，读取其绑定的网络名并自动生成丝印文字
+- 自动根据焊盘、器件层和网络关联对象推断生成到顶层或底层丝印层
+- 自动过滤空网络以及 `N$`、`Net-`、`unconnected`、`nc` 等自动命名网络
+- 生成完成后会立即执行一次焊盘避让
 
-    Gitee:
+### 一键避让焊盘
 
-    ```shell
-    git clone --depth=1 https://gitee.com/jlceda/pro-api-sdk.git
-    ```
+- 优先处理当前选中的丝印文字
+- 如果没有选中丝印，会继续处理最近一次由本扩展生成的丝印
+- 如果仍然没有目标，则处理当前 PCB 中全部顶层/底层丝印文字
 
-    GitHub:
+### 统一文字方向
 
-    ```shell
-    git clone --depth=1 https://github.com/easyeda/pro-api-sdk.git
-    ```
+- 将顶层丝印统一为 `0°`
+- 将底层丝印统一为 `180°`
+- 调整方向后会再次执行焊盘避让
 
-2. 初始化开发环境（安装依赖）
+### 演示效果
 
-    ```shell
-    npm install
-    ```
+![丝印生成效果](./images/demo-effect.png)
 
-3. 进行些许变更 ...
+## 使用方法
 
-4. 编译扩展包
+1. 在嘉立创EDA / EasyEDA 专业版中打开一个 PCB 文档。
+2. 通过顶部菜单 `PCB -> 丝印生成器` 打开扩展菜单。
+3. 按需使用以下命令：
 
-    ```shell
-    npm run build
-    ```
+   - `生成网络丝印`：先选中器件、器件焊盘或游离焊盘
+   - `一键避让焊盘`：可先选中需要处理的丝印文字
+   - `统一文字方向`：可先选中需要处理的丝印文字
+   - `设置字体`：从软件字体列表中选择字体
+   - `设置固定字号`：输入大于 `0` 的数字
 
-5. 在 嘉立创EDA专业版 中安装生成在 `./build/dist/` 下的扩展包
+4. 自动处理完成后，建议对高密度封装区域进行人工复查和微调。
 
 ## 开源许可
 
-<a href="https://choosealicense.com/licenses/apache-2.0/" style="vertical-align: inherit;" target="_blank"><img src="https://img.shields.io/github/license/easyeda/pro-api-sdk" alt="GitHub License" class="not-medium-zoom-image" style="display: inline; vertical-align: inherit;" /></a>
-
-本开发工具组使用 [Apache License 2.0](https://choosealicense.com/licenses/apache-2.0/) 开源许可协议，你仅可以将 **嘉立创EDA**、**EasyEDA** 商标信息用于依托于本工具组开发的扩展包的 **功能描述部分** 和 **开源发布的标题部分**。
+本项目基于 [Apache License 2.0](./LICENSE) 开源。

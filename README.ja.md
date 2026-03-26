@@ -1,43 +1,52 @@
-[简体中文](./README.md) | [English](./README.en.md) | [繁體中文](./README.zh-Hant.md) | [日本語](#) | [Русский](./README.ru.md)
+[简体中文](./README.md) | [English](./README.en.md) | [繁體中文](./README.zh-Hant.md) | [日本語](./README.ja.md) | [Русский](./README.ru.md)
 
-# pro-api-sdk
+# シルクスクリーン生成ツール
 
-嘉立创EDA & EasyEDA Pro Edition は API 開発ツールを拡張します
+JLCEDA Pro / EasyEDA Pro の PCB ページ向けシルクスクリーン支援拡張です。選択したパッドのネット名からシルク文字を自動生成し、パッド回避、文字方向の統一、フォント設定、固定文字サイズ設定を提供します。
 
-<a href="https://github.com/easyeda/pro-api-sdk" style="vertical-align: inherit;" target="_blank"><img src="https://img.shields.io/github/stars/easyeda/pro-api-sdk" alt="GitHub Repo Stars" class="not-medium-zoom-image" style="display: inline; vertical-align: inherit;" /></a>&nbsp;<a href="https://github.com/easyeda/pro-api-sdk/issues" style="vertical-align: inherit;" target="_blank"><img src="https://img.shields.io/github/issues/easyeda/pro-api-sdk" alt="GitHub Issues" class="not-medium-zoom-image" style="display: inline; vertical-align: inherit;" /></a>&nbsp;<a href="https://github.com/easyeda/pro-api-sdk" style="vertical-align: inherit;" target="_blank"><img src="https://img.shields.io/github/repo-size/easyeda/pro-api-sdk" alt="GitHub Repo Size" class="not-medium-zoom-image" style="display: inline; vertical-align: inherit;" /></a>&nbsp;<a href="https://choosealicense.com/licenses/apache-2.0/" style="vertical-align: inherit;" target="_blank"><img src="https://img.shields.io/github/license/easyeda/pro-api-sdk" alt="GitHub License" class="not-medium-zoom-image" style="display: inline; vertical-align: inherit;" /></a>&nbsp;<a href="https://www.npmjs.com/package/@jlceda/pro-api-types" style="vertical-align: inherit;" target="_blank"><img src="https://img.shields.io/npm/v/%40jlceda%2Fpro-api-types?label=pro-api-types" alt="NPM Version" class="not-medium-zoom-image" style="display: inline; vertical-align: inherit;" /></a>&nbsp;<a href="https://www.npmjs.com/package/@jlceda/pro-api-types" style="vertical-align: inherit;" target="_blank"><img src="https://img.shields.io/npm/d18m/%40jlceda%2Fpro-api-types" alt="NPM Downloads" class="not-medium-zoom-image" style="display: inline; vertical-align: inherit;" /></a>
+## 機能概要
 
-> [!NOTE]
->
-> 詳細な開発ドキュメントについては、以下をご覧ください：[https://prodocs.easyeda.com/en/api/guide/](https://prodocs.easyeda.com/en/api/guide/)
+### メニュー
 
-## 開発に入る
+![シルクスクリーン生成ツールのメニュー](./images/menu-screenshot.png)
 
-この開発ツールセットには、[EasyEDA Pro Edition](https://pro.easyeda.com/) 拡張パッケージを開発するためのすべての環境とツールが含まれており、ESLint の推奨ルールが組み込まれています。
+### ネットシルクの生成
 
-1. プロジェクト [pro-api-sdk](https://github.com/easyeda/pro-api-sdk) リポジトリをローカル コンピューターにクローンします
+- PCB で部品、部品パッド、または単独パッドを選択すると、関連するネット名を読み取り、自動でシルク文字を生成します
+- パッド層、部品層、ネットに関連するオブジェクトをもとに、トップまたはボトムのシルク層を自動判定します
+- 空のネットや `N$`、`Net-`、`unconnected`、`nc` などの自動命名ネットは自動的に除外します
+- 生成後すぐに 1 回パッド回避を実行します
 
-    ```shell
-    git clone --depth=1 https://github.com/easyeda/pro-api-sdk.git
-    ```
+### ワンクリックでパッド回避
 
-2. 開発環境の初期化 (依存関係のインストール)
+- 現在選択中のシルク文字を優先して処理します
+- シルク文字が選択されていない場合は、この拡張で直近に生成したシルクを処理します
+- それでも対象がない場合は、現在の PCB にあるトップ層とボトム層の全シルク文字を処理します
 
-    ```shell
-    npm install
-    ```
+### 文字方向の統一
 
-3. いくつかの変更を加えます...
+- トップ層シルクを `0°` に統一します
+- ボトム層シルクを `180°` に統一します
+- 方向を調整した後、再度パッド回避を実行します
 
-4. 拡張機能パッケージをコンパイルする
+### デモ
 
-    ```shell
-    npm run build
-    ```
+![シルク生成のデモ](./images/demo-effect.png)
 
-5. EasyEDA Pro Edition の `./build/dist/` の下に生成された拡張パッケージをインストールします
+## 使い方
 
-## オープンソースライセンス
+1. JLCEDA / EasyEDA Pro で PCB ドキュメントを開きます。
+2. 上部メニュー `PCB -> 丝印生成器` から拡張メニューを開きます。
+3. 必要に応じて以下のコマンドを使用します。
 
-<a href="https://choosealicense.com/licenses/apache-2.0/" style="vertical-align: inherit;" target="_blank"><img src="https://img.shields.io/github/license/easyeda/pro-api-sdk" alt="GitHub License" class="not-medium-zoom-image" style="display: inline; vertical-align: inherit;" /></a>
+   - `生成网络丝印`：先に部品、部品パッド、または単独パッドを選択します
+   - `一键避让焊盘`：必要に応じて対象のシルク文字を先に選択します
+   - `统一文字方向`：必要に応じて対象のシルク文字を先に選択します
+   - `设置字体`：アプリ内のフォント一覧からフォントを選択します
+   - `设置固定字号`：`0` より大きい数値を入力します
 
-この開発ツールグループは、[Apache License 2.0](https://choosealicense.com/licenses/apache-2.0/) オープンソースライセンス契約を使用しており、このツールグループに基づいて開発された拡張パッケージの **機能説明部分** および **オープンソースリリースタイトル部分** の **嘉立创EDA**、**EasyEDA** 商標情報のみを使用することができます。
+4. 自動処理後は、高密度なパッケージ領域を必要に応じて目視確認し、微調整してください。
+
+## ライセンス
+
+このプロジェクトは [Apache License 2.0](./LICENSE) のもとで公開されています。
