@@ -49,4 +49,6 @@
 
 ## 开源许可
 
+- GitHub: [https://github.com/Furiosa69/jlx-externsion.git](https://github.com/Furiosa69/jlx-externsion.git)
+
 本项目基于 [Apache License 2.0](./LICENSE) 开源。

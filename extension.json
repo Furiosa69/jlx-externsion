@@ -3,7 +3,7 @@
 	"uuid": "715e6acdb8c849e1b18bd90fcf2785b6",
 	"displayName": "丝印生成器",
 	"description": "根据网络标签自动生成丝印，支持不同字体、一键避让焊盘、统一文字方向、设置固定字号",
-	"version": "1.0.2",
+	"version": "1.1.0",
 	"publisher": "",
 	"engines": {
 		"eda": "^3.0.0"

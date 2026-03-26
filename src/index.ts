@@ -10,6 +10,7 @@ const STORAGE_KEYS = {
 const DEFAULT_SILK_FONT_FAMILY = 'Default';
 const DEFAULT_SILK_FONT_SIZE = 40;
 const DEFAULT_SILK_CLEARANCE = 12;
+const DEFAULT_SPATIAL_BUCKET_SIZE = 200;
 const MAX_GENERATED_SILK_IDS = 400;
 
 type SilkTextLayer = EPCB_LayerId.TOP_SILKSCREEN | EPCB_LayerId.BOTTOM_SILKSCREEN;
@@ -28,13 +29,27 @@ interface BoundingBox {
 
 interface ComponentPadContext {
 	center: Point;
+	componentId: string;
 	componentLayer: TPCB_LayersOfComponent;
+	pads: IPCB_PrimitivePad[];
 }
 
 interface PadGeometry {
 	bbox: BoundingBox;
 	x: number;
 	y: number;
+}
+
+interface TextGeometry {
+	bbox: BoundingBox;
+	primitiveId: string;
+	x: number;
+	y: number;
+}
+
+interface BoundingBoxIndex<T extends { bbox: BoundingBox }> {
+	bucketSize: number;
+	buckets: Map<string, T[]>;
 }
 
 interface SilkCandidate {
@@ -347,13 +362,9 @@ async function resolveTargetSilkTexts(): Promise<SilkTextTarget> {
 		}
 	}
 
-	const allTexts = filterSilkTexts([
-		...await eda.pcb_PrimitiveString.getAll(EPCB_LayerId.TOP_SILKSCREEN),
-		...await eda.pcb_PrimitiveString.getAll(EPCB_LayerId.BOTTOM_SILKSCREEN),
-	]);
 	return {
-		scopeLabel: '当前 PCB 全部丝印',
-		texts: allTexts,
+		scopeLabel: '目标丝印',
+		texts: [],
 	};
 }
 
@@ -380,8 +391,7 @@ async function buildSilkCandidatesFromSelection(
 				}
 
 				const context = await getComponentPadContext(component, componentContextCache);
-				const pads = await component.getAllPins();
-				for (const pad of pads) {
+				for (const pad of context.pads) {
 					await appendSilkCandidateFromPad(candidates, seenCandidateKeys, netLayerCache, pad, context, fontSize);
 				}
 				break;
@@ -438,7 +448,9 @@ async function getComponentPadContext(
 
 	const context: ComponentPadContext = {
 		center,
+		componentId: primitiveId,
 		componentLayer: component.getState_Layer(),
+		pads,
 	};
 	cache.set(primitiveId, context);
 	return context;
@@ -464,7 +476,10 @@ async function appendSilkCandidateFromPad(
 	const offset = padRadius + Math.max(fontSize * 0.9, 18);
 
 	for (const layer of layers) {
-		const candidateKey = `${primitiveId}:${layer}`;
+		const candidateScopeKey = context
+			? `component:${context.componentId}:${netName}`
+			: `pad:${primitiveId}:${netName}`;
+		const candidateKey = `${candidateScopeKey}:${layer}`;
 		if (seenCandidateKeys.has(candidateKey)) {
 			continue;
 		}
@@ -652,25 +667,43 @@ async function applyPadAvoidanceToTexts(texts: IPCB_PrimitiveString[]): Promise<
 	}
 
 	const padMap = await collectPadGeometryByLayer(texts);
+	const existingTextMap = await collectExistingTextGeometryByLayer(texts);
+	const padIndexMap = new Map<SilkTextLayer, BoundingBoxIndex<PadGeometry>>();
+	const occupiedTextIndexMap = new Map<SilkTextLayer, BoundingBoxIndex<TextGeometry>>();
 	let movedCount = 0;
 
-	for (const text of texts) {
+	for (const [layer, pads] of padMap) {
+		padIndexMap.set(layer, createBoundingBoxIndex(pads));
+	}
+
+	for (const [layer, textGeometries] of existingTextMap) {
+		occupiedTextIndexMap.set(layer, createBoundingBoxIndex(textGeometries));
+	}
+
+	for (const text of sortTextsForPlacement(texts)) {
 		const layer = toSilkTextLayer(text.getState_Layer());
 		if (!layer) {
 			continue;
 		}
 
-		const nextPoint = findClearTextPosition(text, padMap.get(layer) ?? []);
-		if (!nextPoint) {
-			continue;
+		const padIndex = getOrCreateLayerIndex(padIndexMap, layer);
+		const occupiedTextIndex = getOrCreateLayerIndex(occupiedTextIndexMap, layer);
+		const nextPoint = findClearTextPosition(text, padIndex, occupiedTextIndex);
+		let placedText = text;
+
+		if (nextPoint) {
+			placedText = await text
+				.toAsync()
+				.setState_X(nextPoint.x)
+				.setState_Y(nextPoint.y)
+				.done();
+			movedCount += 1;
 		}
 
-		await text
-			.toAsync()
-			.setState_X(nextPoint.x)
-			.setState_Y(nextPoint.y)
-			.done();
-		movedCount += 1;
+		addToBoundingBoxIndex(
+			occupiedTextIndex,
+			toTextGeometry(placedText, nextPoint ?? { x: text.getState_X(), y: text.getState_Y() }),
+		);
 	}
 
 	return movedCount;
@@ -728,11 +761,54 @@ async function collectPadGeometryByLayer(texts: IPCB_PrimitiveString[]): Promise
 	return layerMap;
 }
 
+async function collectExistingTextGeometryByLayer(texts: IPCB_PrimitiveString[]): Promise<Map<SilkTextLayer, TextGeometry[]>> {
+	const needTop = texts.some(text => text.getState_Layer() === EPCB_LayerId.TOP_SILKSCREEN);
+	const needBottom = texts.some(text => text.getState_Layer() === EPCB_LayerId.BOTTOM_SILKSCREEN);
+	const targetTextIds = new Set(texts.map(text => text.getState_PrimitiveId()));
+
+	const layerMap = new Map<SilkTextLayer, TextGeometry[]>([
+		[EPCB_LayerId.TOP_SILKSCREEN, []],
+		[EPCB_LayerId.BOTTOM_SILKSCREEN, []],
+	]);
+
+	if (needTop) {
+		const topTexts = filterSilkTexts(await eda.pcb_PrimitiveString.getAll(EPCB_LayerId.TOP_SILKSCREEN));
+		for (const text of topTexts) {
+			if (targetTextIds.has(text.getState_PrimitiveId())) {
+				continue;
+			}
+			layerMap.get(EPCB_LayerId.TOP_SILKSCREEN)?.push(toTextGeometry(text));
+		}
+	}
+
+	if (needBottom) {
+		const bottomTexts = filterSilkTexts(await eda.pcb_PrimitiveString.getAll(EPCB_LayerId.BOTTOM_SILKSCREEN));
+		for (const text of bottomTexts) {
+			if (targetTextIds.has(text.getState_PrimitiveId())) {
+				continue;
+			}
+			layerMap.get(EPCB_LayerId.BOTTOM_SILKSCREEN)?.push(toTextGeometry(text));
+		}
+	}
+
+	return layerMap;
+}
+
 function toPadGeometry(pad: IPCB_PrimitivePad): PadGeometry {
 	return {
 		bbox: expandBoundingBox(estimatePadBoundingBox(pad), DEFAULT_SILK_CLEARANCE),
 		x: pad.getState_X(),
 		y: pad.getState_Y(),
+	};
+}
+
+function toTextGeometry(text: IPCB_PrimitiveString, point?: Point): TextGeometry {
+	const textPoint = point ?? { x: text.getState_X(), y: text.getState_Y() };
+	return {
+		bbox: expandBoundingBox(buildTextBoundingBox(text, textPoint), DEFAULT_SILK_CLEARANCE / 2),
+		primitiveId: text.getState_PrimitiveId(),
+		x: textPoint.x,
+		y: textPoint.y,
 	};
 }
 
@@ -779,21 +855,29 @@ function getPadDimensions(padShape: TPCB_PrimitivePadShape | undefined): { heigh
 	}
 }
 
-function findClearTextPosition(text: IPCB_PrimitiveString, pads: PadGeometry[]): Point | undefined {
-	if (pads.length === 0) {
+function findClearTextPosition(
+	text: IPCB_PrimitiveString,
+	padIndex: BoundingBoxIndex<PadGeometry>,
+	occupiedTextIndex: BoundingBoxIndex<TextGeometry>,
+): Point | undefined {
+	if (padIndex.buckets.size === 0 && occupiedTextIndex.buckets.size === 0) {
 		return undefined;
 	}
 
 	const originalPoint = { x: text.getState_X(), y: text.getState_Y() };
-	const originalBox = expandBoundingBox(buildTextBoundingBox(text, originalPoint), DEFAULT_SILK_CLEARANCE / 2);
-	const overlappingPads = pads.filter(pad => boxesIntersect(originalBox, pad.bbox));
-	if (overlappingPads.length === 0) {
+	const originalBox = toTextGeometry(text, originalPoint).bbox;
+	const overlappingPads = queryBoundingBoxIndex(padIndex, originalBox)
+		.filter(pad => boxesIntersect(originalBox, pad.bbox));
+	const overlappingTexts = queryBoundingBoxIndex(occupiedTextIndex, originalBox)
+		.filter(item => boxesIntersect(originalBox, item.bbox));
+	const overlappingObstacles = [...overlappingPads, ...overlappingTexts];
+	if (overlappingObstacles.length === 0) {
 		return undefined;
 	}
 
-	const seedVector = normalizeVector(overlappingPads.reduce<Point>((accumulator, pad) => ({
-		x: accumulator.x + (originalPoint.x - pad.x),
-		y: accumulator.y + (originalPoint.y - pad.y),
+	const seedVector = normalizeVector(overlappingObstacles.reduce<Point>((accumulator, obstacle) => ({
+		x: accumulator.x + (originalPoint.x - obstacle.x),
+		y: accumulator.y + (originalPoint.y - obstacle.y),
 	}), { x: 0, y: 0 }));
 	const searchDirections = buildPreferredSearchDirections(seedVector);
 	const stepDistance = Math.max(text.getState_FontSize() * 0.8, DEFAULT_SILK_CLEARANCE);
@@ -804,9 +888,12 @@ function findClearTextPosition(text: IPCB_PrimitiveString, pads: PadGeometry[]):
 				x: originalPoint.x + (direction.x * stepDistance * ring),
 				y: originalPoint.y + (direction.y * stepDistance * ring),
 			};
-			const candidateBox = expandBoundingBox(buildTextBoundingBox(text, candidatePoint), DEFAULT_SILK_CLEARANCE / 2);
-			const blocked = pads.some(pad => boxesIntersect(candidateBox, pad.bbox));
-			if (!blocked) {
+			const candidateBox = toTextGeometry(text, candidatePoint).bbox;
+			const blockedByPad = queryBoundingBoxIndex(padIndex, candidateBox)
+				.some(pad => boxesIntersect(candidateBox, pad.bbox));
+			const blockedByText = queryBoundingBoxIndex(occupiedTextIndex, candidateBox)
+				.some(item => boxesIntersect(candidateBox, item.bbox));
+			if (!blockedByPad && !blockedByText) {
 				return candidatePoint;
 			}
 		}
@@ -916,6 +1003,15 @@ function estimateTextWidth(text: string, fontSize: number): number {
 	return Math.max(fontSize, units * fontSize * 0.78);
 }
 
+function sortTextsForPlacement(texts: IPCB_PrimitiveString[]): IPCB_PrimitiveString[] {
+	return [...texts].sort((left, right) => estimateTextArea(right) - estimateTextArea(left));
+}
+
+function estimateTextArea(text: IPCB_PrimitiveString): number {
+	const box = buildTextBoundingBox(text, { x: text.getState_X(), y: text.getState_Y() });
+	return (box.maxX - box.minX) * (box.maxY - box.minY);
+}
+
 function expandBoundingBox(box: BoundingBox, padding: number): BoundingBox {
 	return {
 		maxX: box.maxX + padding,
@@ -927,6 +1023,85 @@ function expandBoundingBox(box: BoundingBox, padding: number): BoundingBox {
 
 function boxesIntersect(left: BoundingBox, right: BoundingBox): boolean {
 	return !(left.maxX < right.minX || left.minX > right.maxX || left.maxY < right.minY || left.minY > right.maxY);
+}
+
+function createBoundingBoxIndex<T extends { bbox: BoundingBox }>(items: T[]): BoundingBoxIndex<T> {
+	const index: BoundingBoxIndex<T> = {
+		bucketSize: DEFAULT_SPATIAL_BUCKET_SIZE,
+		buckets: new Map<string, T[]>(),
+	};
+
+	for (const item of items) {
+		addToBoundingBoxIndex(index, item);
+	}
+
+	return index;
+}
+
+function addToBoundingBoxIndex<T extends { bbox: BoundingBox }>(index: BoundingBoxIndex<T>, item: T): void {
+	const ranges = getBucketRanges(item.bbox, index.bucketSize);
+	for (let bucketX = ranges.minBucketX; bucketX <= ranges.maxBucketX; bucketX += 1) {
+		for (let bucketY = ranges.minBucketY; bucketY <= ranges.maxBucketY; bucketY += 1) {
+			const bucketKey = `${bucketX}:${bucketY}`;
+			const bucket = index.buckets.get(bucketKey);
+			if (bucket) {
+				bucket.push(item);
+				continue;
+			}
+			index.buckets.set(bucketKey, [item]);
+		}
+	}
+}
+
+function queryBoundingBoxIndex<T extends { bbox: BoundingBox }>(index: BoundingBoxIndex<T>, box: BoundingBox): T[] {
+	if (index.buckets.size === 0) {
+		return [];
+	}
+
+	const ranges = getBucketRanges(box, index.bucketSize);
+	const matches = new Set<T>();
+
+	for (let bucketX = ranges.minBucketX; bucketX <= ranges.maxBucketX; bucketX += 1) {
+		for (let bucketY = ranges.minBucketY; bucketY <= ranges.maxBucketY; bucketY += 1) {
+			const bucket = index.buckets.get(`${bucketX}:${bucketY}`);
+			if (!bucket) {
+				continue;
+			}
+			for (const item of bucket) {
+				matches.add(item);
+			}
+		}
+	}
+
+	return Array.from(matches);
+}
+
+function getBucketRanges(box: BoundingBox, bucketSize: number): {
+	maxBucketX: number;
+	maxBucketY: number;
+	minBucketX: number;
+	minBucketY: number;
+} {
+	return {
+		maxBucketX: Math.floor(box.maxX / bucketSize),
+		maxBucketY: Math.floor(box.maxY / bucketSize),
+		minBucketX: Math.floor(box.minX / bucketSize),
+		minBucketY: Math.floor(box.minY / bucketSize),
+	};
+}
+
+function getOrCreateLayerIndex<T extends { bbox: BoundingBox }>(
+	indexMap: Map<SilkTextLayer, BoundingBoxIndex<T>>,
+	layer: SilkTextLayer,
+): BoundingBoxIndex<T> {
+	const existing = indexMap.get(layer);
+	if (existing) {
+		return existing;
+	}
+
+	const created = createBoundingBoxIndex<T>([]);
+	indexMap.set(layer, created);
+	return created;
 }
 
 function getUnifiedRotation(layer: TPCB_LayersOfImage): number {
